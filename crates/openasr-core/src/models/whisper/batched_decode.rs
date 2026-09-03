@@ -344,7 +344,7 @@ impl WhisperServeDecoderRuntime {
         slot_index: usize,
         job: &WhisperServeBatchJob,
     ) -> Result<(), WhisperServeBatchError> {
-        if job.decoder_state != self.decoder_state {
+        if job.decoder_state.resident_capacity() != self.decoder_state.resident_capacity() {
             return Err(WhisperServeBatchError::DecodeFailed {
                 reason: format!(
                     "whisper serve-batch resident runtime state mismatch: built={:?}, requested={:?}",
@@ -447,7 +447,7 @@ impl Seq2SeqServeRuntime for WhisperServeDecoderRuntime {
 
     fn configure_for_job(&mut self, job: &Self::Job) -> Result<(), Self::Error> {
         validate_whisper_serve_decoder_state(job)?;
-        if job.decoder_state != self.decoder_state {
+        if job.decoder_state.resident_capacity() != self.decoder_state.resident_capacity() {
             return Err(WhisperServeBatchError::DecodeFailed {
                 reason: format!(
                     "whisper serve-batch resident runtime state mismatch: built={:?}, requested={:?}",
