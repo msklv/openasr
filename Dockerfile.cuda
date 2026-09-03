@@ -45,7 +45,9 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
 WORKDIR /app
 COPY . .
 
-ENV OPENASR_CUDA_GPU_TARGETS=${OPENASR_CUDA_GPU_TARGETS}
+ENV OPENASR_CUDA_GPU_TARGETS=${OPENASR_CUDA_GPU_TARGETS} \
+    CUDA_PATH=/usr/local/cuda \
+    CUDA_HOME=/usr/local/cuda
 RUN cargo build --release -p openasr-cli --features cuda
 
 FROM nvidia/cuda:${CUDA_VERSION}-runtime-${UBUNTU_CODENAME} AS runtime

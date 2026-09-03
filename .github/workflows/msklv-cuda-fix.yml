@@ -43,7 +43,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push
+      - name: Build & push (registry layer cache for fast retries)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -51,6 +51,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.IMAGE }}:${{ env.TAG }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache-cuda
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache-cuda,mode=max
           # Fast native x86_64 build; keep explicit target for reproducibility.
           provenance: false
           sbom: false
