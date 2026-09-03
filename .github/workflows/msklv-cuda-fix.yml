@@ -1,0 +1,54 @@
+name: Build CUDA image (msklv fix)
+
+# Source-build of the CUDA image from the fix/longform-window-envelope branch.
+# Unlike upstream (which release-assembles from the published CUDA tarball via
+# Dockerfile.cuda.release), this uses Dockerfile.cuda to compile FROM SOURCE so
+# the binary includes the un-released longform fix. Built natively on x86_64
+# (ubuntu-latest) — no QEMU emulation. Pushes to GHCR.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/longform-window-envelope
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/msklv/openasr
+  TAG: cuda-0.1.36-fix
+
+jobs:
+  build-cuda:
+    name: Build & push CUDA image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for cross arch)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.cuda
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:${{ env.TAG }}
+          # Fast native x86_64 build; keep explicit target for reproducibility.
+          provenance: false
+          sbom: false
