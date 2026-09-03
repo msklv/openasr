@@ -18,7 +18,7 @@ permissions:
 
 env:
   IMAGE: ghcr.io/msklv/openasr
-  TAG: cuda-0.1.36-fix
+  TAG: cuda-0.1.36-fix2
 
 jobs:
   build-cuda:
