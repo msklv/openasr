@@ -132,11 +132,16 @@ fn attribute_segment(
             Ok(())
         }
         None => {
-            log_attribution(&segment, &overlap, "aligned-word-text-mismatch", 0);
-            Err(SpeakerAttributionError::AlignedWordTextMismatch {
-                start_s: segment.start,
-                end_s: segment.end,
-            })
+            // Degraded fallback (gnivc fork): the transcript's word anchors do
+            // not reconcile with the turn boundaries, so a faithful split is
+            // impossible. Rather than failing the whole request closed (upstream
+            // AlignedWordTextMismatch), keep the segment whole and attribute it to
+            // the dominant overlapping speaker. Lossy (the mixed-voice cut is a
+            // single speaker) but the request completes instead of returning 400.
+            log_attribution(&segment, &overlap, "aligned-word-text-mismatch-degraded", 1);
+            apply_speaker(&mut segment, dominant, identities);
+            output.push(segment);
+            Ok(())
         }
     }
 }
@@ -921,7 +926,10 @@ mod tests {
     }
 
     #[test]
-    fn word_text_mismatch_fails_closed() {
+    fn word_text_mismatch_degrades_to_dominant_speaker() {
+        // gnivc fork: un-reconcilable aligned words no longer fail the whole
+        // request closed; the segment is kept whole and attributed to the dominant
+        // overlapping speaker instead (even overlap -> lowest SpeakerId on ties).
         let turns = vec![turn(0.0, 2.0, 0), turn(2.0, 4.0, 1)];
         let segment = worded_seg(
             0.0,
@@ -929,15 +937,12 @@ mod tests {
             "actual transcript text",
             vec![word("unrelated", 0.5, 1.0), word("words", 2.5, 3.0)],
         );
-        let error = assign_speakers(&turns, vec![segment], &BTreeMap::new())
-            .expect_err("mismatched aligned words must not fabricate attribution");
-        assert_eq!(
-            error,
-            SpeakerAttributionError::AlignedWordTextMismatch {
-                start_s: 0.0,
-                end_s: 4.0,
-            }
-        );
+        let segs = assign(&turns, vec![segment], &BTreeMap::new());
+        assert_eq!(segs.len(), 1, "mismatch must degrade, not fail closed");
+        assert_eq!(segs[0].speaker.as_deref(), Some("SPEAKER_00"));
+        assert_eq!(segs[0].start, 0.0);
+        assert_eq!(segs[0].end, 4.0);
+        assert_eq!(segs[0].text, "actual transcript text");
     }
 
     #[test]
